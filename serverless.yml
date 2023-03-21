@@ -1,0 +1,42 @@
+service: transcritter
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: eu-west-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:PutObject"
+        - "s3:GetObject"
+        - "s3:DeleteObject"
+      Resource: "arn:aws:s3:::transcritter*"
+    - Effect: Allow
+      Action:
+        - transcribe:StartTranscriptionJob
+      Resource: '*'
+  s3:
+    transcriptionsBucket:
+      name: ${self:service}-transcriptions
+      accessControl: Private
+  environment:
+    S3_BUCKET: ${self:provider.s3.transcriptionsBucket.name}
+
+functions:
+  start-transcription:
+    handler: lambdas/start-transcription.handler
+    events:
+      - s3:
+          bucket: transcriptionsBucket
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .mp3
+
+  format-transcription:
+    handler: lambdas/format.handler
+    events:
+      - s3:
+          bucket: transcriptionsBucket
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .json
